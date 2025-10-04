@@ -1,0 +1,21 @@
+{
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+    // ts-nodeがtsconfigのpathsを解決できるようにします。
+  },
+  "compilerOptions": {
+    "outDir": "./dist",
+    "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "baseUrl": "./",
+    "paths": {
+      "*": ["./src/*"]
+    },
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.js"],
+  "exclude": ["node_modules"]
+}
