@@ -1,0 +1,59 @@
+package "書籍集約(BookAggregation)" {
+    ' 1. 集約とポリシーの表現
+    class "Book(書籍)" as Book << (A,red) Aggregate >> {
+        BookId: BookId
+        Title: タイトル
+        Author: 著者
+        Price: 価格
+    }
+
+    ' 2. ビジネスルールの具体化
+    note bottom of Book
+        書籍の基本情報を管理する。
+    end note
+
+    ' 3. 必要なインプットの特定
+    class "BookId" as BookId {
+        + value: string
+    }
+
+    class "Title(タイトル)" as Title {
+        + value: string
+    }
+
+    class "Author(著者)" as Author {
+        + value: string
+    }
+
+    class "Price(価格)" as Price {
+        + value: number
+    }
+
+    note bottom of BookId
+        ISBNコードを適用する。
+        ISBNコードは、ISBNのあとに数字で「978」、
+        さらにグループ（国・地域）番号（日本は4）、出版社番号、書名番号、の合計12桁の数字を並べ、
+        最後にこの12桁の数字を特定の計算式で演算して得た1桁のチェック用の数を付け加えたコード。
+    end note
+
+    note bottom of Title
+        MAX_LENGTH = 1000
+        MIN_LENGTH = 1
+    end note
+
+    note bottom of Author
+        MAX_LENGTH = 100
+        MIN_LENGTH = 1
+    end note
+
+    note bottom of Price
+        日本円のみ扱う。
+        MAX = 1,000,000
+        MIN = 1
+    end note
+
+    Book *-- BookId
+    Book *-- Title
+    Book *-- Author
+    Book *-- Price
+}
