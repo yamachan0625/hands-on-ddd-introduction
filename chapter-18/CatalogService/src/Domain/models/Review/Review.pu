@@ -1,0 +1,96 @@
+package "レビュー集約(ReviewAggregation)" {
+    ' 1. 集約とポリシーの表現
+    class "Review(レビュー)" as Review << (A,red) Aggregate >> {
+        ReviewId: ReviewId
+        BookId: BookId
+        Name: 投稿者名
+        Rating: 評価
+        Comment: コメント
+        extractRecommendedBooks(): string[]
+        isTrustworthy(threshold: number): boolean
+    }
+
+    ' 2. ビジネスルールの具体化
+    note bottom of Review
+        レビューコメントから前提書籍を抽出するロジックを提供。
+        「〜を学んだ後に読むと理解しやすい」という
+        パターンの記述から前提書籍を特定する。
+        (前提書籍とは、この本を理解するために必要な基礎知識や前提条件のこと)
+
+        またレビューの信頼性を評価するロジックも提供。
+        評価とコメントの質を組み合わせて信頼性スコアを計算し、
+        閾値と比較することで信頼できるレビューかどうかを判断する。
+        これにより、より価値のあるレビューをユーザーに提供できる。
+    end note
+
+    ' 3. 必要なインプットの特定
+    class "ReviewId" as ReviewId {
+        + value: string
+    }
+
+    class "BookId" as BookId {
+        + value: string
+    }
+
+    class "Name(投稿者名)" as Name {
+        + value: string
+    }
+
+    class "Rating(評価)" as Rating {
+        + value: number
+        + getQualityFactor(): number
+    }
+
+    class "Comment(コメント)" as Comment {
+        + value: string
+        + extractMatches(pattern: RegExp): string[]
+        + getQualityFactor(): number
+    }
+
+    note bottom of ReviewId
+        一意の識別子
+    end note
+
+    note bottom of BookId
+        このレビューが関連する書籍のID
+    end note
+
+    note bottom of Name
+        MAX_LENGTH = 50
+        MIN_LENGTH = 1
+    end note
+
+    note bottom of Rating
+        評価は1から5までの整数値
+        MAX = 5
+        MIN = 1
+        getQualityFactor()メソッドはRating(評価)を0.0～1.0の範囲に正規化
+        例: 評価1→0.0、評価2→0.25、評価3→0.5、評価4→0.75、評価5→1.0
+        計算式: (評価値 - MIN) / (MAX - MIN)
+        レビューの信頼性の重み付けや、
+        推薦アルゴリズムでの評価の重要度計算に活用可能
+    end note
+
+    note bottom of Comment
+        MAX_LENGTH = 1000
+        MIN_LENGTH = 1
+        誹謗中傷などの不適切なコメントは作成できないようにする
+        getQualityFactor()メソッド:
+        コメントの質を0.0～1.0の範囲で評価する
+        - 10文字未満：0.2（低品質）
+        - 100文字以上：1.0（高品質）
+        - 10～100文字：長さに応じて0.2から1.0まで線形に増加
+        レビューの信頼性評価に使用される
+
+        extractMatches(pattern)メソッド:
+        正規表現パターンに一致するテキスト部分を抽出する
+        例えば「〜を学んだ後に読むと理解しやすい」というパターンから
+        前提書籍名を抽出するのに使用される
+    end note
+
+    Review *-- ReviewId
+    Review *-- BookId
+    Review *-- Name
+    Review *-- Rating
+    Review *-- Comment
+}

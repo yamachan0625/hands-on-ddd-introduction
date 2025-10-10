@@ -1,0 +1,13 @@
+@startuml CatalogDomainModel
+
+title カタログドメインモデル (Catalog Domain Model)
+
+' 集約を含める
+!include ./models/Review/Review.pu
+!include ./models/Book/Book.pu
+!include ./models/BookRecommendationNote.pu
+
+' 集約間の関連
+Book "1" -right- "0..n" Review : has >
+
+@enduml
