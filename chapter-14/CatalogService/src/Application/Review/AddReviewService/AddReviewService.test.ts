@@ -20,11 +20,10 @@ describe("AddReviewService", () => {
   beforeEach(async () => {
     reviewRepository = new InMemoryReviewRepository();
     bookRepository = new InMemoryBookRepository();
-    const mockTransactionManager = new MockTransactionManager();
     addReviewService = new AddReviewService(
       reviewRepository,
       bookRepository,
-      mockTransactionManager
+      new MockTransactionManager()
     );
   });
 

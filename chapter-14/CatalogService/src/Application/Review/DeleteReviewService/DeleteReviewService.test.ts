@@ -15,15 +15,13 @@ import {
 
 describe("DeleteReviewService", () => {
   let reviewRepository: InMemoryReviewRepository;
-  let mockTransactionManager: MockTransactionManager;
   let deleteReviewService: DeleteReviewService;
 
   beforeEach(async () => {
     reviewRepository = new InMemoryReviewRepository();
-    mockTransactionManager = new MockTransactionManager();
     deleteReviewService = new DeleteReviewService(
       reviewRepository,
-      mockTransactionManager
+      new MockTransactionManager()
     );
   });
 

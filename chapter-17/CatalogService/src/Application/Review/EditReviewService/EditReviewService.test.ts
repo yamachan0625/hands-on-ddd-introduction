@@ -13,15 +13,13 @@ import { EditReviewCommand, EditReviewService } from "./EditReviewService";
 
 describe("EditReviewService", () => {
   let reviewRepository: InMemoryReviewRepository;
-  let mockTransactionManager: MockTransactionManager;
   let editReviewService: EditReviewService;
 
   beforeEach(async () => {
     reviewRepository = new InMemoryReviewRepository();
-    mockTransactionManager = new MockTransactionManager();
     editReviewService = new EditReviewService(
       reviewRepository,
-      mockTransactionManager
+      new MockTransactionManager()
     );
   });
 
