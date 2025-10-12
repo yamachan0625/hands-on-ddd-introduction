@@ -1,3 +1,5 @@
+import { inject, injectable } from "tsyringe";
+
 import { ITransactionManager } from "Application/shared/ITransactionManager";
 import { BookId } from "Domain/models/Book/BookId/BookId";
 import { IBookRepository } from "Domain/models/Book/IBookRepository";
@@ -18,10 +20,14 @@ export type AddReviewCommand = {
   comment?: string;
 };
 
+@injectable()
 export class AddReviewService {
   constructor(
+    @inject("IReviewRepository")
     private reviewRepository: IReviewRepository,
+    @inject("IBookRepository")
     private bookRepository: IBookRepository,
+    @inject("ITransactionManager")
     private transactionManager: ITransactionManager
   ) {}
 

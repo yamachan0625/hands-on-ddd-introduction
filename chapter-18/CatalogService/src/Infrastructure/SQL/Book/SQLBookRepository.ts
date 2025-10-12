@@ -1,3 +1,5 @@
+import { injectable } from "tsyringe";
+
 import { Author } from "Domain/models/Book/Author/Author";
 import { Book } from "Domain/models/Book/Book";
 import { BookId } from "Domain/models/Book/BookId/BookId";
@@ -8,6 +10,7 @@ import { Title } from "Domain/models/Book/Title/Title";
 
 import { SQLClientManager } from "../SQLClientManager";
 
+@injectable()
 export class SQLBookRepository implements IBookRepository {
   constructor(private clientManager: SQLClientManager) {}
 

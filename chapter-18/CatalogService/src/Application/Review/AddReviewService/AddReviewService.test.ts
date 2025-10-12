@@ -1,4 +1,5 @@
-import { MockTransactionManager } from "Application/shared/MockTransactionManager";
+import { container } from "tsyringe";
+
 import { Author } from "Domain/models/Book/Author/Author";
 import { Book } from "Domain/models/Book/Book";
 import { BookId } from "Domain/models/Book/BookId/BookId";
@@ -18,14 +19,13 @@ describe("AddReviewService", () => {
   let addReviewService: AddReviewService;
 
   beforeEach(async () => {
-    reviewRepository = new InMemoryReviewRepository();
-    bookRepository = new InMemoryBookRepository();
-    const mockTransactionManager = new MockTransactionManager();
-    addReviewService = new AddReviewService(
-      reviewRepository,
-      bookRepository,
-      mockTransactionManager
-    );
+    addReviewService = container.resolve(AddReviewService);
+    reviewRepository = addReviewService[
+      "reviewRepository"
+    ] as InMemoryReviewRepository;
+    bookRepository = addReviewService[
+      "bookRepository"
+    ] as InMemoryBookRepository;
   });
 
   it("存在する書籍に対してレビューを追加することができる", async () => {

@@ -1,3 +1,5 @@
+import { container } from "tsyringe";
+
 import { BookId } from "Domain/models/Book/BookId/BookId";
 import { Comment } from "Domain/models/Review/Comment/Comment";
 import { Name } from "Domain/models/Review/Name/Name";
@@ -18,10 +20,10 @@ describe("GetRecommendedBooksService", () => {
   let getRecommendedBooksService: GetRecommendedBooksService;
 
   beforeEach(async () => {
-    reviewRepository = new InMemoryReviewRepository();
-    getRecommendedBooksService = new GetRecommendedBooksService(
-      reviewRepository
-    );
+    getRecommendedBooksService = container.resolve(GetRecommendedBooksService);
+    reviewRepository = getRecommendedBooksService[
+      "reviewRepository"
+    ] as InMemoryReviewRepository;
   });
 
   it("書籍IDから推薦書籍のリストを取得できる", async () => {

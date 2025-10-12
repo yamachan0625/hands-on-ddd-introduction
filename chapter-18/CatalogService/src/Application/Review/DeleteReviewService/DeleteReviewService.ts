@@ -1,3 +1,5 @@
+import { inject, injectable } from "tsyringe";
+
 import { ITransactionManager } from "Application/shared/ITransactionManager";
 import { IReviewRepository } from "Domain/models/Review/IReviewRepository";
 import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
@@ -6,9 +8,12 @@ export type DeleteReviewCommand = {
   reviewId: string;
 };
 
+@injectable()
 export class DeleteReviewService {
   constructor(
+    @inject("IReviewRepository")
     private reviewRepository: IReviewRepository,
+    @inject("ITransactionManager")
     private transactionManager: ITransactionManager
   ) {}
 

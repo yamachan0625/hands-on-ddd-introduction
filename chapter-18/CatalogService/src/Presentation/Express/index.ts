@@ -1,4 +1,7 @@
 import express, { json } from "express";
+// Reflectのポリフィルをcontainer.resolveされる前に一度読み込む必要がある
+import "reflect-metadata";
+import { container } from "tsyringe";
 
 import {
   RegisterBookCommand,
@@ -20,10 +23,8 @@ import {
   GetRecommendedBooksCommand,
   GetRecommendedBooksService,
 } from "Application/Review/GetRecommendedBooksService/GetRecommendedBooksService";
-import { SQLBookRepository } from "Infrastructure/SQL/Book/SQLBookRepository";
-import { SQLReviewRepository } from "Infrastructure/SQL/Review/SQLReviewRepository";
-import { SQLClientManager } from "Infrastructure/SQL/SQLClientManager";
-import { SQLTransactionManager } from "Infrastructure/SQL/SQLTransactionManager";
+
+import "../../Program";
 
 const app = express();
 const port = 3000;
@@ -31,16 +32,11 @@ const port = 3000;
 // JSON形式のリクエストボディを正しく解析するために必要
 app.use(json());
 
-const clientManager = new SQLClientManager();
-const transactionManager = new SQLTransactionManager(clientManager);
-const bookRepository = new SQLBookRepository(clientManager);
-const reviewRepository = new SQLReviewRepository(clientManager);
-
 // 中核ユースケース: レビュー内容から推薦書籍を取得
 app.get("/book/:isbn/recommendations", async (req, res) => {
   try {
-    const getRecommendedBooksService = new GetRecommendedBooksService(
-      reviewRepository
+    const getRecommendedBooksService = container.resolve(
+      GetRecommendedBooksService
     );
 
     const command: GetRecommendedBooksCommand = {
@@ -68,10 +64,7 @@ app.post("/book", async (req, res) => {
       price: number;
     };
 
-    const registerBookService = new RegisterBookService(
-      bookRepository,
-      transactionManager
-    );
+    const registerBookService = container.resolve(RegisterBookService);
 
     const registerBookCommand: RegisterBookCommand = requestBody;
     const book = await registerBookService.execute(registerBookCommand);
@@ -91,11 +84,7 @@ app.post("/book/:isbn/review", async (req, res) => {
       comment?: string;
     };
 
-    const addReviewService = new AddReviewService(
-      reviewRepository,
-      bookRepository,
-      transactionManager
-    );
+    const addReviewService = container.resolve(AddReviewService);
 
     const addReviewCommand: AddReviewCommand = {
       bookId: req.params.isbn,
@@ -118,10 +107,7 @@ app.put("/review/:reviewId", async (req, res) => {
       comment?: string;
     };
 
-    const editReviewService = new EditReviewService(
-      reviewRepository,
-      transactionManager
-    );
+    const editReviewService = container.resolve(EditReviewService);
 
     const editReviewCommand: EditReviewCommand = {
       reviewId: req.params.reviewId,
@@ -138,10 +124,7 @@ app.put("/review/:reviewId", async (req, res) => {
 // レビュー削除
 app.delete("/review/:reviewId", async (req, res) => {
   try {
-    const deleteReviewService = new DeleteReviewService(
-      reviewRepository,
-      transactionManager
-    );
+    const deleteReviewService = container.resolve(DeleteReviewService);
 
     const deleteReviewCommand: DeleteReviewCommand = {
       reviewId: req.params.reviewId,

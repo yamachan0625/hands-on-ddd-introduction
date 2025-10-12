@@ -1,8 +1,11 @@
+import { injectable } from "tsyringe";
+
 import { ITransactionManager } from "Application/shared/ITransactionManager";
 
 import pool from "./db";
 import { SQLClientManager } from "./SQLClientManager";
 
+@injectable()
 export class SQLTransactionManager implements ITransactionManager {
   constructor(private clientManager: SQLClientManager) {}
 

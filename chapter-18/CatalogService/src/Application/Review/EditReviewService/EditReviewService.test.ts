@@ -1,4 +1,5 @@
-import { MockTransactionManager } from "Application/shared/MockTransactionManager";
+import { container } from "tsyringe";
+
 import { BookId } from "Domain/models/Book/BookId/BookId";
 import { Comment } from "Domain/models/Review/Comment/Comment";
 import { Name } from "Domain/models/Review/Name/Name";
@@ -13,16 +14,13 @@ import { EditReviewCommand, EditReviewService } from "./EditReviewService";
 
 describe("EditReviewService", () => {
   let reviewRepository: InMemoryReviewRepository;
-  let mockTransactionManager: MockTransactionManager;
   let editReviewService: EditReviewService;
 
   beforeEach(async () => {
-    reviewRepository = new InMemoryReviewRepository();
-    mockTransactionManager = new MockTransactionManager();
-    editReviewService = new EditReviewService(
-      reviewRepository,
-      mockTransactionManager
-    );
+    editReviewService = container.resolve(EditReviewService);
+    reviewRepository = editReviewService[
+      "reviewRepository"
+    ] as InMemoryReviewRepository;
   });
 
   it("存在するレビューを編集することができる", async () => {
