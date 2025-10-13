@@ -1,5 +1,6 @@
 import { inject, injectable } from "tsyringe";
 
+import { IDomainEventPublisher } from "Application/shared/DomainEvent/IDomainEventPublisher";
 import { ITransactionManager } from "Application/shared/ITransactionManager";
 import { BookId } from "Domain/models/Book/BookId/BookId";
 import { IBookRepository } from "Domain/models/Book/IBookRepository";
@@ -28,7 +29,9 @@ export class AddReviewService {
     @inject("IBookRepository")
     private bookRepository: IBookRepository,
     @inject("ITransactionManager")
-    private transactionManager: ITransactionManager
+    private transactionManager: ITransactionManager,
+    @inject("IDomainEventPublisher")
+    private domainEventPublisher: IDomainEventPublisher
   ) {}
 
   async execute(command: AddReviewCommand): Promise<AddReviewDTO> {
@@ -39,7 +42,7 @@ export class AddReviewService {
       throw new Error("書籍が存在しません");
     }
 
-    return await this.transactionManager.begin(async () => {
+    const review = await this.transactionManager.begin(async () => {
       const reviewId = new ReviewId();
       const reviewIdentity = new ReviewIdentity(reviewId);
       const name = new Name(command.name);
@@ -58,13 +61,21 @@ export class AddReviewService {
 
       await this.reviewRepository.save(review);
 
-      return {
-        id: review.reviewId.value,
-        bookId: review.bookId.value,
-        name: review.name.value,
-        rating: review.rating.value,
-        comment: review.comment?.value,
-      };
+      return review;
     });
+
+    const events = review.getDomainEvents();
+    for (const event of events) {
+      this.domainEventPublisher.publish(event);
+    }
+    review.clearDomainEvents();
+
+    return {
+      id: review.reviewId.value,
+      bookId: review.bookId.value,
+      name: review.name.value,
+      rating: review.rating.value,
+      comment: review.comment?.value,
+    };
   }
 }

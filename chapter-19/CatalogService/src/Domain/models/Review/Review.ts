@@ -1,17 +1,24 @@
+import { Aggregate } from "../../shared/Aggregate";
+import {
+  ReviewDomainEvent,
+  ReviewEventFactory,
+} from "../../shared/DomainEvent/Review/ReviewDomainEventFactory";
 import { BookId } from "../Book/BookId/BookId";
 import { Comment } from "./Comment/Comment";
 import { Name } from "./Name/Name";
 import { Rating } from "./Rating/Rating";
 import { ReviewIdentity } from "./ReviewIdentity/ReviewIdentity";
 
-export class Review {
+export class Review extends Aggregate<ReviewDomainEvent> {
   private constructor(
     private readonly _identity: ReviewIdentity,
     private readonly _bookId: BookId,
     private _name: Name,
     private _rating: Rating,
     private _comment?: Comment
-  ) {}
+  ) {
+    super();
+  }
 
   static create(
     identity: ReviewIdentity,
@@ -20,7 +27,16 @@ export class Review {
     rating: Rating,
     comment?: Comment
   ): Review {
-    return new Review(identity, bookId, name, rating, comment);
+    const review = new Review(identity, bookId, name, rating, comment);
+    const event = ReviewEventFactory.createReviewCreated(
+      identity.reviewId,
+      bookId,
+      name,
+      rating,
+      comment
+    );
+    review.addDomainEvent(event);
+    return review;
   }
 
   static reconstruct(
@@ -99,14 +115,31 @@ export class Review {
   }
 
   updateName(name: Name): void {
-    this._name = name;
+    const event = ReviewEventFactory.createReviewNameUpdated(
+      this.reviewId,
+      name
+    );
+    this.addDomainEvent(event);
   }
 
   updateRating(rating: Rating): void {
-    this._rating = rating;
+    const event = ReviewEventFactory.createReviewRatingUpdated(
+      this.reviewId,
+      rating
+    );
+    this.addDomainEvent(event);
   }
 
   editComment(comment: Comment): void {
-    this._comment = comment;
+    const event = ReviewEventFactory.createReviewCommentEdited(
+      this.reviewId,
+      comment
+    );
+    this.addDomainEvent(event);
+  }
+
+  delete(): void {
+    const event = ReviewEventFactory.createReviewDeleted(this.reviewId);
+    this.addDomainEvent(event);
   }
 }
