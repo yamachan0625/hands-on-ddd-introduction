@@ -1,14 +1,14 @@
-import { inject, injectable } from "tsyringe";
+import { inject, injectable } from 'tsyringe';
 
-import { IDomainEventPublisher } from "Application/shared/DomainEvent/IDomainEventPublisher";
-import { ITransactionManager } from "Application/shared/ITransactionManager";
-import { Comment } from "Domain/models/Review/Comment/Comment";
-import { IReviewRepository } from "Domain/models/Review/IReviewRepository";
-import { Name } from "Domain/models/Review/Name/Name";
-import { Rating } from "Domain/models/Review/Rating/Rating";
-import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
+import { ITransactionManager } from 'Application/shared/ITransactionManager';
+import { Comment } from 'Domain/models/Review/Comment/Comment';
+import { IReviewRepository } from 'Domain/models/Review/IReviewRepository';
+import { Name } from 'Domain/models/Review/Name/Name';
+import { Rating } from 'Domain/models/Review/Rating/Rating';
+import { ReviewId } from 'Domain/models/Review/ReviewId/ReviewId';
+import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
 
-import { EditReviewDTO } from "./EditReviewDTO";
+import { EditReviewDTO } from './EditReviewDTO';
 
 export type EditReviewCommand = {
   reviewId: string;
@@ -22,10 +22,10 @@ export class EditReviewService {
   constructor(
     @inject("IReviewRepository")
     private reviewRepository: IReviewRepository,
+    @inject("IEventStoreRepository")
+    private eventStoreRepository: IEventStoreRepository,
     @inject("ITransactionManager")
-    private transactionManager: ITransactionManager,
-    @inject("IDomainEventPublisher")
-    private domainEventPublisher: IDomainEventPublisher
+    private transactionManager: ITransactionManager
   ) {}
 
   async execute(command: EditReviewCommand): Promise<EditReviewDTO> {
@@ -54,15 +54,10 @@ export class EditReviewService {
       }
 
       await this.reviewRepository.update(review);
+      await this.eventStoreRepository.store(review);
 
       return review;
     });
-
-    const events = review.getDomainEvents();
-    for (const event of events) {
-      this.domainEventPublisher.publish(event);
-    }
-    review.clearDomainEvents();
 
     return {
       id: review.reviewId.value,

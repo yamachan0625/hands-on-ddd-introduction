@@ -1,31 +1,31 @@
-import express, { json } from "express";
+import express, { json } from 'express';
 // Reflectのポリフィルをcontainer.resolveされる前に一度読み込む必要がある
-import "reflect-metadata";
-import { container } from "tsyringe";
+import 'reflect-metadata';
+import { container } from 'tsyringe';
 
 import {
-  RegisterBookCommand,
-  RegisterBookService,
-} from "Application/Book/RegisterBookService/RegisterBookService";
-import { CatalogServiceEventHandler } from "Application/DomainEventHandlers/CatalogServiceEventHandler";
+    RegisterBookCommand, RegisterBookService
+} from 'Application/Book/RegisterBookService/RegisterBookService';
 import {
-  AddReviewCommand,
-  AddReviewService,
-} from "Application/Review/AddReviewService/AddReviewService";
+    CatalogServiceEventHandler
+} from 'Application/DomainEventHandlers/CatalogServiceEventHandler';
 import {
-  DeleteReviewCommand,
-  DeleteReviewService,
-} from "Application/Review/DeleteReviewService/DeleteReviewService";
+    PendingEventsPublisher
+} from 'Application/EventStore/PendingEventsPublisher/PendingEventsPublisher';
 import {
-  EditReviewCommand,
-  EditReviewService,
-} from "Application/Review/EditReviewService/EditReviewService";
+    AddReviewCommand, AddReviewService
+} from 'Application/Review/AddReviewService/AddReviewService';
 import {
-  GetRecommendedBooksCommand,
-  GetRecommendedBooksService,
-} from "Application/Review/GetRecommendedBooksService/GetRecommendedBooksService";
+    DeleteReviewCommand, DeleteReviewService
+} from 'Application/Review/DeleteReviewService/DeleteReviewService';
+import {
+    EditReviewCommand, EditReviewService
+} from 'Application/Review/EditReviewService/EditReviewService';
+import {
+    GetRecommendedBooksCommand, GetRecommendedBooksService
+} from 'Application/Review/GetRecommendedBooksService/GetRecommendedBooksService';
 
-import "../../Program";
+import '../../Program';
 
 const app = express();
 const port = 3000;
@@ -142,4 +142,7 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
   // サブスクライバーを登録
   container.resolve(CatalogServiceEventHandler).register();
+
+  // 未発行イベントのパブリッシュを開始
+  container.resolve(PendingEventsPublisher).start();
 });

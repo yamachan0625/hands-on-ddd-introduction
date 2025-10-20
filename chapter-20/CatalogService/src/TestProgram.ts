@@ -1,9 +1,12 @@
-import { container } from "tsyringe";
+import { container } from 'tsyringe';
 
-import { MockDomainEventPublisher } from "Application/shared/DomainEvent/MockDomainEventPublisher";
-import { MockTransactionManager } from "Application/shared/MockTransactionManager";
-import { InMemoryBookRepository } from "Infrastructure/InMemory/Book/InMemoryBookRepository";
-import { InMemoryReviewRepository } from "Infrastructure/InMemory/Review/InMemoryReviewRepository";
+import { MockDomainEventPublisher } from 'Application/shared/DomainEvent/MockDomainEventPublisher';
+import { MockTransactionManager } from 'Application/shared/MockTransactionManager';
+import { InMemoryBookRepository } from 'Infrastructure/InMemory/Book/InMemoryBookRepository';
+import {
+    InMemoryEventStoreRepository
+} from 'Infrastructure/InMemory/InMemory/InMemoryEventStoreRepository';
+import { InMemoryReviewRepository } from 'Infrastructure/InMemory/Review/InMemoryReviewRepository';
 
 // DomainEvent
 container.register("IDomainEventPublisher", {
@@ -17,6 +20,10 @@ container.register("IBookRepository", {
 
 container.register("IReviewRepository", {
   useClass: InMemoryReviewRepository,
+});
+
+container.register("IEventStoreRepository", {
+  useClass: InMemoryEventStoreRepository,
 });
 
 // TransactionManager registration

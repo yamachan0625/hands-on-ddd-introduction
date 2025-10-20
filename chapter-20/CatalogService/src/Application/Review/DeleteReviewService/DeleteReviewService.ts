@@ -1,9 +1,9 @@
-import { inject, injectable } from "tsyringe";
+import { inject, injectable } from 'tsyringe';
 
-import { IDomainEventPublisher } from "Application/shared/DomainEvent/IDomainEventPublisher";
-import { ITransactionManager } from "Application/shared/ITransactionManager";
-import { IReviewRepository } from "Domain/models/Review/IReviewRepository";
-import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
+import { ITransactionManager } from 'Application/shared/ITransactionManager';
+import { IReviewRepository } from 'Domain/models/Review/IReviewRepository';
+import { ReviewId } from 'Domain/models/Review/ReviewId/ReviewId';
+import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
 
 export type DeleteReviewCommand = {
   reviewId: string;
@@ -14,14 +14,14 @@ export class DeleteReviewService {
   constructor(
     @inject("IReviewRepository")
     private reviewRepository: IReviewRepository,
+    @inject("IEventStoreRepository")
+    private eventStoreRepository: IEventStoreRepository,
     @inject("ITransactionManager")
-    private transactionManager: ITransactionManager,
-    @inject("IDomainEventPublisher")
-    private domainEventPublisher: IDomainEventPublisher
+    private transactionManager: ITransactionManager
   ) {}
 
   async execute(command: DeleteReviewCommand): Promise<void> {
-    const review = await this.transactionManager.begin(async () => {
+    await this.transactionManager.begin(async () => {
       // 対象のレビューを取得して存在確認
       const reviewId = new ReviewId(command.reviewId);
       const review = await this.reviewRepository.findById(reviewId);
@@ -33,14 +33,9 @@ export class DeleteReviewService {
       review.delete();
 
       await this.reviewRepository.delete(reviewId);
+      await this.eventStoreRepository.store(review);
 
       return review;
     });
-
-    const events = review.getDomainEvents();
-    for (const event of events) {
-      this.domainEventPublisher.publish(event);
-    }
-    review.clearDomainEvents();
   }
 }

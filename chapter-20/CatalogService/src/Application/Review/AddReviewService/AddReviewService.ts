@@ -1,18 +1,18 @@
-import { inject, injectable } from "tsyringe";
+import { inject, injectable } from 'tsyringe';
 
-import { IDomainEventPublisher } from "Application/shared/DomainEvent/IDomainEventPublisher";
-import { ITransactionManager } from "Application/shared/ITransactionManager";
-import { BookId } from "Domain/models/Book/BookId/BookId";
-import { IBookRepository } from "Domain/models/Book/IBookRepository";
-import { Comment } from "Domain/models/Review/Comment/Comment";
-import { IReviewRepository } from "Domain/models/Review/IReviewRepository";
-import { Name } from "Domain/models/Review/Name/Name";
-import { Rating } from "Domain/models/Review/Rating/Rating";
-import { Review } from "Domain/models/Review/Review";
-import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
-import { ReviewIdentity } from "Domain/models/Review/ReviewIdentity/ReviewIdentity";
+import { ITransactionManager } from 'Application/shared/ITransactionManager';
+import { BookId } from 'Domain/models/Book/BookId/BookId';
+import { IBookRepository } from 'Domain/models/Book/IBookRepository';
+import { Comment } from 'Domain/models/Review/Comment/Comment';
+import { IReviewRepository } from 'Domain/models/Review/IReviewRepository';
+import { Name } from 'Domain/models/Review/Name/Name';
+import { Rating } from 'Domain/models/Review/Rating/Rating';
+import { Review } from 'Domain/models/Review/Review';
+import { ReviewId } from 'Domain/models/Review/ReviewId/ReviewId';
+import { ReviewIdentity } from 'Domain/models/Review/ReviewIdentity/ReviewIdentity';
+import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
 
-import { AddReviewDTO } from "./AddReviewDTO";
+import { AddReviewDTO } from './AddReviewDTO';
 
 export type AddReviewCommand = {
   bookId: string;
@@ -28,10 +28,10 @@ export class AddReviewService {
     private reviewRepository: IReviewRepository,
     @inject("IBookRepository")
     private bookRepository: IBookRepository,
+    @inject("IEventStoreRepository")
+    private eventStoreRepository: IEventStoreRepository,
     @inject("ITransactionManager")
-    private transactionManager: ITransactionManager,
-    @inject("IDomainEventPublisher")
-    private domainEventPublisher: IDomainEventPublisher
+    private transactionManager: ITransactionManager
   ) {}
 
   async execute(command: AddReviewCommand): Promise<AddReviewDTO> {
@@ -60,15 +60,10 @@ export class AddReviewService {
       );
 
       await this.reviewRepository.save(review);
+      await this.eventStoreRepository.store(review);
 
       return review;
     });
-
-    const events = review.getDomainEvents();
-    for (const event of events) {
-      this.domainEventPublisher.publish(event);
-    }
-    review.clearDomainEvents();
 
     return {
       id: review.reviewId.value,
