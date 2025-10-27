@@ -120,6 +120,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       name
     );
     this.addDomainEvent(event);
+    this._name = name;
   }
 
   updateRating(rating: Rating): void {
@@ -128,6 +129,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       rating
     );
     this.addDomainEvent(event);
+    this._rating = rating;
   }
 
   editComment(comment: Comment): void {
@@ -136,6 +138,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       comment
     );
     this.addDomainEvent(event);
+    this._comment = comment;
   }
 
   delete(): void {
