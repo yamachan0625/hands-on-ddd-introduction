@@ -7,7 +7,8 @@ import { Rating } from "Domain/models/Review/Rating/Rating";
 import { Review } from "Domain/models/Review/Review";
 import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
 import { ReviewIdentity } from "Domain/models/Review/ReviewIdentity/ReviewIdentity";
-import { InMemoryReviewRepository } from "Infrastructure/InMemory/Review/InMemoryReviewRepository";
+import { ReviewDomainEvent } from "Domain/shared/DomainEvent/Review/ReviewDomainEventFactory";
+import { InMemoryEventStoreRepository } from "Infrastructure/InMemory/InMemory/InMemoryEventStoreRepository";
 
 import {
   DeleteReviewCommand,
@@ -15,14 +16,14 @@ import {
 } from "./DeleteReviewService";
 
 describe("DeleteReviewService", () => {
-  let reviewRepository: InMemoryReviewRepository;
+  let eventStoreRepository: InMemoryEventStoreRepository;
   let deleteReviewService: DeleteReviewService;
 
   beforeEach(async () => {
     deleteReviewService = container.resolve(DeleteReviewService);
-    reviewRepository = deleteReviewService[
-      "reviewRepository"
-    ] as InMemoryReviewRepository;
+    eventStoreRepository = deleteReviewService[
+      "eventStoreRepository"
+    ] as InMemoryEventStoreRepository;
   });
 
   it("存在するレビューを削除することができる", async () => {
@@ -37,11 +38,13 @@ describe("DeleteReviewService", () => {
       new Comment("テストコメント")
     );
 
-    await reviewRepository.save(review);
+    await eventStoreRepository.store(review);
 
     // 作成されたことを確認
-    let retrievedReview = await reviewRepository.findById(
-      new ReviewId(reviewId)
+    const retrievedReview = await eventStoreRepository.find(
+      review.reviewId.value,
+      "Review",
+      Review.reconstruct
     );
     expect(retrievedReview).not.toBeNull();
 
@@ -49,9 +52,17 @@ describe("DeleteReviewService", () => {
     const command: DeleteReviewCommand = { reviewId };
     await deleteReviewService.execute(command);
 
-    // 削除されたことを確認
-    retrievedReview = await reviewRepository.findById(new ReviewId(reviewId));
-    expect(retrievedReview).toBeNull();
+    // ReviewDeletedイベントが記録されていることを確認
+    await eventStoreRepository.find(
+      review.reviewId.value,
+      "Review",
+      (events) => {
+        const eventTypes = events.map((event) => event.eventType);
+        // 各操作に対応するイベントが記録されていることを確認
+        expect(eventTypes).toStrictEqual(["ReviewCreated", "ReviewDeleted"]);
+        return Review.reconstruct(events as ReviewDomainEvent[]);
+      }
+    );
   });
 
   it("レビューが存在しない場合エラーを投げる", async () => {

@@ -7,20 +7,20 @@ import { Rating } from "Domain/models/Review/Rating/Rating";
 import { Review } from "Domain/models/Review/Review";
 import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
 import { ReviewIdentity } from "Domain/models/Review/ReviewIdentity/ReviewIdentity";
-import { InMemoryReviewRepository } from "Infrastructure/InMemory/Review/InMemoryReviewRepository";
+import { ReviewDomainEvent } from "Domain/shared/DomainEvent/Review/ReviewDomainEventFactory";
+import { InMemoryEventStoreRepository } from "Infrastructure/InMemory/InMemory/InMemoryEventStoreRepository";
 
-import { EditReviewDTO } from "./EditReviewDTO";
 import { EditReviewCommand, EditReviewService } from "./EditReviewService";
 
 describe("EditReviewService", () => {
-  let reviewRepository: InMemoryReviewRepository;
+  let eventStoreRepository: InMemoryEventStoreRepository;
   let editReviewService: EditReviewService;
 
   beforeEach(async () => {
     editReviewService = container.resolve(EditReviewService);
-    reviewRepository = editReviewService[
-      "reviewRepository"
-    ] as InMemoryReviewRepository;
+    eventStoreRepository = editReviewService[
+      "eventStoreRepository"
+    ] as InMemoryEventStoreRepository;
   });
 
   it("存在するレビューを編集することができる", async () => {
@@ -35,7 +35,7 @@ describe("EditReviewService", () => {
       new Comment("元のコメント")
     );
 
-    await reviewRepository.save(review);
+    await eventStoreRepository.store(review);
 
     const command: EditReviewCommand = {
       reviewId,
@@ -44,20 +44,31 @@ describe("EditReviewService", () => {
       comment: "新しいコメント",
     };
 
-    const result = await editReviewService.execute(command);
+    await editReviewService.execute(command);
 
-    // DTOの内容を検証
-    expect(result).toEqual<EditReviewDTO>({
-      id: reviewId,
-      bookId: bookId,
-      name: "新しい名前",
-      rating: 5,
-      comment: "新しいコメント",
-    });
+    // ドメインイベントが正しい順序で記録されていることを確認
+    await eventStoreRepository.find(
+      review.reviewId.value,
+      "Review",
+      (events) => {
+        const eventTypes = events.map((event) => event.eventType);
+        // 各更新操作に対応するイベントが記録されていることを確認
+        expect(eventTypes).toStrictEqual([
+          "ReviewCreated",
+          "ReviewNameUpdated",
+          "ReviewRatingUpdated",
+          "ReviewCommentEdited",
+        ]);
+
+        return Review.reconstruct(events as ReviewDomainEvent[]);
+      }
+    );
 
     // 変更が反映されたか確認
-    const updatedReview = await reviewRepository.findById(
-      new ReviewId(reviewId)
+    const updatedReview = await eventStoreRepository.find(
+      review.reviewId.value,
+      "Review",
+      Review.reconstruct
     );
     expect(updatedReview).not.toBeNull();
     expect(updatedReview?.name.value).toBe("新しい名前");

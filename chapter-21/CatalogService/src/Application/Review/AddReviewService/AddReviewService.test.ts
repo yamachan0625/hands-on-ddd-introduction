@@ -6,23 +6,24 @@ import { BookId } from "Domain/models/Book/BookId/BookId";
 import { BookIdentity } from "Domain/models/Book/BookIdentity/BookIdentity";
 import { Price } from "Domain/models/Book/Price/Price";
 import { Title } from "Domain/models/Book/Title/Title";
-import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
+import { Review } from "Domain/models/Review/Review";
+import { ReviewDomainEvent } from "Domain/shared/DomainEvent/Review/ReviewDomainEventFactory";
 import { InMemoryBookRepository } from "Infrastructure/InMemory/Book/InMemoryBookRepository";
-import { InMemoryReviewRepository } from "Infrastructure/InMemory/Review/InMemoryReviewRepository";
+import { InMemoryEventStoreRepository } from "Infrastructure/InMemory/InMemory/InMemoryEventStoreRepository";
 
 import { AddReviewDTO } from "./AddReviewDTO";
 import { AddReviewCommand, AddReviewService } from "./AddReviewService";
 
 describe("AddReviewService", () => {
-  let reviewRepository: InMemoryReviewRepository;
+  let eventStoreRepository: InMemoryEventStoreRepository;
   let bookRepository: InMemoryBookRepository;
   let addReviewService: AddReviewService;
 
   beforeEach(async () => {
     addReviewService = container.resolve(AddReviewService);
-    reviewRepository = addReviewService[
-      "reviewRepository"
-    ] as InMemoryReviewRepository;
+    eventStoreRepository = addReviewService[
+      "eventStoreRepository"
+    ] as InMemoryEventStoreRepository;
     bookRepository = addReviewService[
       "bookRepository"
     ] as InMemoryBookRepository;
@@ -63,8 +64,15 @@ describe("AddReviewService", () => {
     });
 
     // レビューが正しく保存されたか確認
-    const savedReview = await reviewRepository.findById(
-      new ReviewId(result.id)
+    const savedReview = await eventStoreRepository.find(
+      result.id,
+      "Review",
+      (events) => {
+        const eventTypes = events.map((event) => event.eventType);
+        // 操作に対応するイベントが記録されていることを確認
+        expect(eventTypes).toStrictEqual(["ReviewCreated"]);
+        return Review.reconstruct(events as ReviewDomainEvent[]);
+      }
     );
     expect(savedReview).not.toBeNull();
   });

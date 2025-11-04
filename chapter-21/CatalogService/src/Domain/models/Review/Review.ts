@@ -7,17 +7,57 @@ import { BookId } from "../Book/BookId/BookId";
 import { Comment } from "./Comment/Comment";
 import { Name } from "./Name/Name";
 import { Rating } from "./Rating/Rating";
+import { ReviewId } from "./ReviewId/ReviewId";
 import { ReviewIdentity } from "./ReviewIdentity/ReviewIdentity";
 
 export class Review extends Aggregate<ReviewDomainEvent> {
   private constructor(
-    private readonly _identity: ReviewIdentity,
-    private readonly _bookId: BookId,
+    private _identity: ReviewIdentity,
+    private _bookId: BookId,
     private _name: Name,
     private _rating: Rating,
     private _comment?: Comment
   ) {
     super();
+  }
+
+  private static initialize(): Review {
+    return new Review(undefined!, undefined!, undefined!, undefined!);
+  }
+
+  private applyEvent(event: ReviewDomainEvent): void {
+    switch (event.eventType) {
+      case "ReviewCreated": {
+        const { reviewId, bookId, name, rating, comment } = event.eventBody;
+        this._identity = new ReviewIdentity(new ReviewId(reviewId));
+        this._bookId = new BookId(bookId);
+        this._name = new Name(name);
+        this._rating = new Rating(rating);
+        this._comment = comment ? new Comment(comment) : undefined;
+        break;
+      }
+
+      case "ReviewNameUpdated": {
+        this._name = new Name(event.eventBody.name);
+        break;
+      }
+
+      case "ReviewRatingUpdated": {
+        this._rating = new Rating(event.eventBody.rating);
+        break;
+      }
+
+      case "ReviewCommentEdited": {
+        if (event.eventBody.comment) {
+          this._comment = new Comment(event.eventBody.comment);
+        }
+        break;
+      }
+
+      case "ReviewDeleted": {
+        break;
+      }
+    }
   }
 
   static create(
@@ -27,7 +67,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
     rating: Rating,
     comment?: Comment
   ): Review {
-    const review = new Review(identity, bookId, name, rating, comment);
+    const review = Review.initialize();
     const event = ReviewEventFactory.createReviewCreated(
       identity.reviewId,
       bookId,
@@ -36,17 +76,21 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       comment
     );
     review.addDomainEvent(event);
+    review.applyEvent(event);
     return review;
   }
 
-  static reconstruct(
-    identity: ReviewIdentity,
-    bookId: BookId,
-    name: Name,
-    rating: Rating,
-    comment?: Comment
-  ): Review {
-    return new Review(identity, bookId, name, rating, comment);
+  static reconstruct(events: ReviewDomainEvent[]): Review {
+    if (events.length === 0) {
+      throw new Error("イベントが空です");
+    }
+
+    const review = Review.initialize();
+    for (const event of events) {
+      review.applyEvent(event);
+    }
+
+    return review;
   }
 
   /**
@@ -120,6 +164,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       name
     );
     this.addDomainEvent(event);
+    this.applyEvent(event);
   }
 
   updateRating(rating: Rating): void {
@@ -128,6 +173,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       rating
     );
     this.addDomainEvent(event);
+    this.applyEvent(event);
   }
 
   editComment(comment: Comment): void {
@@ -136,6 +182,7 @@ export class Review extends Aggregate<ReviewDomainEvent> {
       comment
     );
     this.addDomainEvent(event);
+    this.applyEvent(event);
   }
 
   delete(): void {

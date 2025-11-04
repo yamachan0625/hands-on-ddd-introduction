@@ -1,14 +1,14 @@
-import { inject, injectable } from 'tsyringe';
+import { inject, injectable } from "tsyringe";
 
-import { ITransactionManager } from 'Application/shared/ITransactionManager';
-import { Comment } from 'Domain/models/Review/Comment/Comment';
-import { IReviewRepository } from 'Domain/models/Review/IReviewRepository';
-import { Name } from 'Domain/models/Review/Name/Name';
-import { Rating } from 'Domain/models/Review/Rating/Rating';
-import { ReviewId } from 'Domain/models/Review/ReviewId/ReviewId';
-import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
+import { ITransactionManager } from "Application/shared/ITransactionManager";
+import { Comment } from "Domain/models/Review/Comment/Comment";
+import { Name } from "Domain/models/Review/Name/Name";
+import { Rating } from "Domain/models/Review/Rating/Rating";
+import { Review } from "Domain/models/Review/Review";
+import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
+import { IEventStoreRepository } from "Domain/shared/DomainEvent/IEventStoreRepository";
 
-import { EditReviewDTO } from './EditReviewDTO';
+import { EditReviewDTO } from "./EditReviewDTO";
 
 export type EditReviewCommand = {
   reviewId: string;
@@ -20,8 +20,6 @@ export type EditReviewCommand = {
 @injectable()
 export class EditReviewService {
   constructor(
-    @inject("IReviewRepository")
-    private reviewRepository: IReviewRepository,
     @inject("IEventStoreRepository")
     private eventStoreRepository: IEventStoreRepository,
     @inject("ITransactionManager")
@@ -32,7 +30,11 @@ export class EditReviewService {
     const review = await this.transactionManager.begin(async () => {
       // 対象のレビューを取得
       const reviewId = new ReviewId(command.reviewId);
-      const review = await this.reviewRepository.findById(reviewId);
+      const review = await this.eventStoreRepository.find(
+        reviewId.value,
+        "Review",
+        Review.reconstruct
+      );
 
       if (!review) {
         throw new Error("レビューが存在しません");
@@ -53,7 +55,6 @@ export class EditReviewService {
         review.editComment(comment);
       }
 
-      await this.reviewRepository.update(review);
       await this.eventStoreRepository.store(review);
 
       return review;

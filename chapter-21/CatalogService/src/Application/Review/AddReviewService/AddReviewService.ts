@@ -1,18 +1,17 @@
-import { inject, injectable } from 'tsyringe';
+import { inject, injectable } from "tsyringe";
 
-import { ITransactionManager } from 'Application/shared/ITransactionManager';
-import { BookId } from 'Domain/models/Book/BookId/BookId';
-import { IBookRepository } from 'Domain/models/Book/IBookRepository';
-import { Comment } from 'Domain/models/Review/Comment/Comment';
-import { IReviewRepository } from 'Domain/models/Review/IReviewRepository';
-import { Name } from 'Domain/models/Review/Name/Name';
-import { Rating } from 'Domain/models/Review/Rating/Rating';
-import { Review } from 'Domain/models/Review/Review';
-import { ReviewId } from 'Domain/models/Review/ReviewId/ReviewId';
-import { ReviewIdentity } from 'Domain/models/Review/ReviewIdentity/ReviewIdentity';
-import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
+import { ITransactionManager } from "Application/shared/ITransactionManager";
+import { BookId } from "Domain/models/Book/BookId/BookId";
+import { IBookRepository } from "Domain/models/Book/IBookRepository";
+import { Comment } from "Domain/models/Review/Comment/Comment";
+import { Name } from "Domain/models/Review/Name/Name";
+import { Rating } from "Domain/models/Review/Rating/Rating";
+import { Review } from "Domain/models/Review/Review";
+import { ReviewId } from "Domain/models/Review/ReviewId/ReviewId";
+import { ReviewIdentity } from "Domain/models/Review/ReviewIdentity/ReviewIdentity";
+import { IEventStoreRepository } from "Domain/shared/DomainEvent/IEventStoreRepository";
 
-import { AddReviewDTO } from './AddReviewDTO';
+import { AddReviewDTO } from "./AddReviewDTO";
 
 export type AddReviewCommand = {
   bookId: string;
@@ -24,8 +23,6 @@ export type AddReviewCommand = {
 @injectable()
 export class AddReviewService {
   constructor(
-    @inject("IReviewRepository")
-    private reviewRepository: IReviewRepository,
     @inject("IBookRepository")
     private bookRepository: IBookRepository,
     @inject("IEventStoreRepository")
@@ -59,7 +56,6 @@ export class AddReviewService {
         comment
       );
 
-      await this.reviewRepository.save(review);
       await this.eventStoreRepository.store(review);
 
       return review;
