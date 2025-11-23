@@ -6,17 +6,98 @@
 
 実装は以下の順序で進めていきます。
 
-1. Event テーブルの設計と作成
-2. イベントストアの実装
-3. Review アプリケーションサービスの修正
-4. メッセージリレーの実装
-5. 動作確認
+1. DomainEvent クラスの拡張
+2. Event テーブルの設計と作成
+3. イベントストアの実装
+4. Review アプリケーションサービスの修正
+5. メッセージリレーの実装
+6. 動作確認
 
-## 1. Event テーブルの設計と作成
+## 1. DomainEvent クラスの拡張
 
-まずはドメインイベントを永続化するための Event テーブル(Outbox テーブル) を作成します。このテーブルは DomainEvent クラスの属性をそのまま保存できる構造とします。
+Outbox パターンを実装するにあたり、まず DomainEvent クラスにイベントの配信状態を管理する機能を追加します。
 
-### 1.1 SQL 定義の作成
+### 1.1 publishedAt フィールドと publish() メソッドの追加
+
+`src/Domain/shared/DomainEvent/DomainEvent.ts`を以下のように拡張します。
+
+```typescript:CatalogService/src/Domain/shared/DomainEvent/DomainEvent.ts
+import { nanoid } from "nanoid";
+
+export class DomainEvent<
+  Type extends string = string,
+  Body extends Record<string, unknown> = Record<string, unknown>
+> {
+  private constructor(
+    // ドメインイベントのID
+    public readonly eventId: string,
+    // 集約のID
+    public readonly aggregateId: string,
+    // 集約の種類
+    public readonly aggregateType: string,
+    // ドメインイベントの種類
+    public readonly eventType: Type,
+    // ドメインイベントの内容
+    public readonly eventBody: Body,
+    // ドメインイベントの発生時刻
+    public readonly occurredOn: Date,
+    // ドメインイベントをパブリッシャーがパブリッシュした時刻
+    public publishedAt: Date | null
+  ) {}
+
+  static create<Type extends string, Body extends Record<string, unknown>>(
+    aggregateId: string,
+    aggregateType: string,
+    eventType: Type,
+    eventBody: Body
+  ): DomainEvent<Type, Body> {
+    return new DomainEvent(
+      nanoid(),
+      aggregateId,
+      aggregateType,
+      eventType,
+      eventBody,
+      new Date(),
+      null
+    );
+  }
+
+  static reconstruct<Type extends string, Body extends Record<string, unknown>>(
+    eventId: string,
+    aggregateId: string,
+    aggregateType: string,
+    eventType: Type,
+    eventBody: Body,
+    occurredOn: Date,
+    publishedAt: Date | null
+  ): DomainEvent<Type, Body> {
+    return new DomainEvent(
+      eventId,
+      aggregateId,
+      aggregateType,
+      eventType,
+      eventBody,
+      occurredOn,
+      publishedAt
+    );
+  }
+
+  // 配信状態を更新するメソッド
+  public publish(): void {
+    this.publishedAt = new Date();
+  }
+}
+```
+
+`publish()`メソッドは、メッセージリレーがイベントをメッセージブローカーに配信した後に呼び出され、`publishedAt`に配信完了時刻を記録します。
+
+なお、ドメインイベントは「過去に発生した出来事」を表現するため、基本的には不変ですが、`publishedAt`だけは配信管理のために後から値を設定する必要があるため、この不変性の原則の対象外となります。
+
+## 2. Event テーブルの設計と作成
+
+ドメインイベントを永続化するための Event テーブル(Outbox テーブル) を作成します。このテーブルは DomainEvent クラスの属性をそのまま保存できる構造とします。
+
+### 2.1 SQL 定義の作成
 
 `src/Infrastructure/SQL/migrations`ディレクトリに`create_event_table.sql`ファイルを作成し、以下の SQL 定義を記述します。
 
@@ -39,7 +120,7 @@ CREATE INDEX IF NOT EXISTS "Event_unpublished_occurredOn_idx" ON "Event"("publis
 
 未発行イベント（`publishedAt` が NULL）の検索とソート処理を同時に最適化する複合インデックスを追加しています。
 
-### 1.2 マイグレーションの実行
+### 2.2 マイグレーションの実行
 
 `node-postgres` を使用して `Event` テーブルのマイグレーションを実行します。
 
@@ -49,11 +130,11 @@ $ npx ts-node src/Infrastructure/SQL/migrations/runMigrations.ts create_event_ta
 
 これにより、`Event` テーブルが作成されました。
 
-## 2. イベントストアの実装
+## 3. イベントストアの実装
 
 次に、`Event`テーブルに対する操作を行うリポジトリを実装します。
 
-### 2.1 インターフェイスの定義
+### 3.1 インターフェイスの定義
 
 まずはインターフェイスを定義します。`src/Domain/shared/DomainEvent`配下に`IEventStoreRepository.ts`ファイルを作成し、以下のように実装します。
 
@@ -71,7 +152,7 @@ export interface IEventStoreRepository {
 }
 ```
 
-### 2.2 SQL 実装
+### 3.2 SQL 実装
 
 このインターフェイスの実装を `node-postgres` を使って行います。`src/Infrastructure/SQL`配下に`EventStore`ディレクトリを作成します。次に、`SQLEventStoreRepository.ts`ファイルを作成し、以下のように実装します。
 
@@ -169,7 +250,7 @@ export class SQLEventStoreRepository implements IEventStoreRepository {
 }
 ```
 
-### 2.3 DI コンテナーへの登録
+### 3.3 DI コンテナーへの登録
 
 実装したリポジトリを DI コンテナーに登録しましょう。
 
@@ -215,7 +296,7 @@ container.register("ITransactionManager", {
 
 ```
 
-### 2.4 テスト用の InMemoryEventStoreRepository の実装
+### 3.4 テスト用の InMemoryEventStoreRepository の実装
 
 SQL 用の実装と並行して、テストやローカル開発で利用する InMemory の EventStoreRepository も実装しましょう。`src/Infrastructure/InMemory`配下に`EventStore`ディレクトリを作成します。次に、`InMemoryEventStoreRepository.ts`ファイルを作成して以下のように実装します。
 
@@ -248,7 +329,7 @@ export class InMemoryEventStoreRepository implements IEventStoreRepository {
 }
 ```
 
-### 2.5 TestProgram.ts への登録
+### 3.5 TestProgram.ts への登録
 
 テスト環境では、InMemoryEventStoreRepository を使用するように`TestProgram.ts`に登録します。
 
@@ -287,11 +368,11 @@ container.register("ITransactionManager", {
 });
 ```
 
-## 3. Review アプリケーションサービスの修正
+## 4. Review アプリケーションサービスの修正
 
 次に、アプリケーションサービスを修正します。これまで、ドメインイベントのパブリッシュはサービス内で直接行っていましたが、Outbox パターンの実装に伴い、パブリッシュ処理を削除し、イベントストアへの保存処理を追加します。
 
-### 3.1 AddReviewService の修正
+### 4.1 AddReviewService の修正
 
 ```typescript:CatalogService/src/Application/Review/AddReviewService/AddReviewService.ts
 import { inject, injectable } from 'tsyringe';
@@ -372,7 +453,7 @@ export class AddReviewService {
 }
 ```
 
-### 3.2 EditReviewService の修正
+### 4.2 EditReviewService の修正
 
 ```typescript:CatalogService/src/Application/Review/EditReviewService/EditReviewService.ts
 import { inject, injectable } from 'tsyringe';
@@ -447,7 +528,7 @@ export class EditReviewService {
 }
 ```
 
-### 3.3 DeleteReviewService の修正
+### 4.3 DeleteReviewService の修正
 
 ```typescript:CatalogService/src/Application/Review/DeleteReviewService/DeleteReviewService.ts
 import { inject, injectable } from 'tsyringe';
@@ -493,11 +574,11 @@ export class DeleteReviewService {
 }
 ```
 
-## 4. メッセージリレーの実装
+## 5. メッセージリレーの実装
 
 メッセージリレーは、Outbox テーブルに保存されたイベントを実際にパブリッシュする役割を担うコンポーネントです。
 
-### 4.1 PendingEventsPublishService の実装
+### 5.1 PendingEventsPublishService の実装
 
 このサービスは以下の重要な役割を担います。
 
@@ -513,6 +594,7 @@ import { inject, injectable } from 'tsyringe';
 import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
 
 import { IDomainEventPublisher } from '../../shared/DomainEvent/IDomainEventPublisher';
+import { ITransactionManager } from '../../shared/ITransactionManager';
 
 @injectable()
 export class PendingEventsPublisher {
@@ -523,7 +605,9 @@ export class PendingEventsPublisher {
     @inject("IEventStoreRepository")
     private eventStoreRepository: IEventStoreRepository,
     @inject("IDomainEventPublisher")
-    private domainEventPublisher: IDomainEventPublisher
+    private domainEventPublisher: IDomainEventPublisher,
+    @inject("ITransactionManager")
+    private transactionManager: ITransactionManager
   ) {}
 
   /**
@@ -559,8 +643,10 @@ export class PendingEventsPublisher {
       try {
         this.domainEventPublisher.publish(event);
 
-        event.publish();
-        await this.eventStoreRepository.markAsPublished(event);
+        await this.transactionManager.begin(async () => {
+          event.publish();
+          await this.eventStoreRepository.markAsPublished(event);
+        });
       } catch {
         // 発行に失敗した場合 (ネットワークエラー、ブローカーダウン等)ループを即座に中断し、後続のイベントを処理しない。
         // これにより、イベントの順序性が保証される。
@@ -572,7 +658,7 @@ export class PendingEventsPublisher {
 }
 ```
 
-### 4.2 サービスの起動
+### 5.2 サービスの起動
 
 実装した`PendingEventsPublishService`をアプリケーション起動時に開始するように設定します。`src/Presentation/Express/index.ts`ファイルを以下のように修正します。
 
@@ -598,11 +684,11 @@ app.listen(port, () => {
 > - 間隔を短くする：イベントの即時性が向上する反面、データベースの負荷が増加
 > - 間隔を長くする：データベースの負荷は減少するが、イベントの遅延が大きくなる
 
-## 5. 動作確認
+## 6. 動作確認
 
 それでは、書籍登録 API を叩いてイベントが正しく保存され、ポーリングによってパブリッシュされることを確認しましょう。
 
-### 5.1 サーバの起動
+### 6.1 サーバの起動
 
 まずは、サーバを再起動します。
 
@@ -610,7 +696,7 @@ app.listen(port, () => {
 $ npx ts-node src/Presentation/Express/index.ts
 ```
 
-### 5.2 レビュー追加 API の実行
+### 6.2 レビュー追加 API の実行
 
 次に`curl`コマンドを利用してリクエストを送信します。
 
@@ -622,7 +708,7 @@ $ curl -X POST -H "Content-Type: application/json" \
 
 ※ もし「書籍が存在しません」というエラーが表示された場合は、先に書籍登録 API で該当の書籍を登録してください。
 
-### 5.3 ログの確認
+### 6.3 ログの確認
 
 サーバのログを確認すると、これまでと同じようにイベントが保存されていることが確認できます。
 
