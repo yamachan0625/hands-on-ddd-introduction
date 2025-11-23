@@ -513,7 +513,6 @@ import { inject, injectable } from 'tsyringe';
 import { IEventStoreRepository } from 'Domain/shared/DomainEvent/IEventStoreRepository';
 
 import { IDomainEventPublisher } from '../../shared/DomainEvent/IDomainEventPublisher';
-import { ITransactionManager } from '../../shared/ITransactionManager';
 
 @injectable()
 export class PendingEventsPublisher {
@@ -524,9 +523,7 @@ export class PendingEventsPublisher {
     @inject("IEventStoreRepository")
     private eventStoreRepository: IEventStoreRepository,
     @inject("IDomainEventPublisher")
-    private domainEventPublisher: IDomainEventPublisher,
-    @inject("ITransactionManager")
-    private transactionManager: ITransactionManager
+    private domainEventPublisher: IDomainEventPublisher
   ) {}
 
   /**
@@ -562,10 +559,8 @@ export class PendingEventsPublisher {
       try {
         this.domainEventPublisher.publish(event);
 
-        await this.transactionManager.begin(async () => {
-          event.publish();
-          await this.eventStoreRepository.markAsPublished(event);
-        });
+        event.publish();
+        await this.eventStoreRepository.markAsPublished(event);
       } catch {
         // 発行に失敗した場合 (ネットワークエラー、ブローカーダウン等)ループを即座に中断し、後続のイベントを処理しない。
         // これにより、イベントの順序性が保証される。
