@@ -16,9 +16,7 @@ export class DomainEvent<
     // ドメインイベントの内容
     public readonly eventBody: Body,
     // ドメインイベントの発生時刻
-    public readonly occurredOn: Date,
-    // ドメインイベントをパブリッシャーがパブリッシュした時刻
-    public publishedAt: Date | null
+    public readonly occurredOn: Date
   ) {}
 
   static create<Type extends string, Body extends Record<string, unknown>>(
@@ -33,8 +31,7 @@ export class DomainEvent<
       aggregateType,
       eventType,
       eventBody,
-      new Date(),
-      null
+      new Date()
     );
   }
 
@@ -44,8 +41,7 @@ export class DomainEvent<
     aggregateType: string,
     eventType: Type,
     eventBody: Body,
-    occurredOn: Date,
-    publishedAt: Date | null
+    occurredOn: Date
   ): DomainEvent<Type, Body> {
     return new DomainEvent(
       eventId,
@@ -53,12 +49,7 @@ export class DomainEvent<
       aggregateType,
       eventType,
       eventBody,
-      occurredOn,
-      publishedAt
+      occurredOn
     );
-  }
-
-  public publish(): void {
-    this.publishedAt = new Date();
   }
 }
